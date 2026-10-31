@@ -1,0 +1,71 @@
+diff --git a/app/build.gradle.kts b/app/build.gradle.kts
+index 05a47e1..71298ed 100644
+--- a/app/build.gradle.kts
++++ b/app/build.gradle.kts
+@@ -1,3 +1,4 @@
++import java.util.Properties
+ import javax.xml.parsers.DocumentBuilderFactory
+ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+ 
+@@ -17,7 +18,7 @@ android {
+ 
+   defaultConfig {
+     applicationId = "org.fdroid"
+-    minSdk = 24
++    minSdk = 36  // abuild: 自用改装 Android 16+ (原 24)
+     targetSdk = 37
+     versionCode = 2000053
+     versionName = "2.0.3"
+@@ -25,6 +26,22 @@ android {
+     testInstrumentationRunner = "org.fdroid.HiltTestRunner"
+   }
+ 
++  // abuild: 自用签名，口令不进仓库（key.properties 被 .gitignore 排除）
++  val signingProps = Properties().apply {
++    val f = rootProject.file("key.properties")
++    if (f.exists()) f.inputStream().use { load(it) }
++  }
++  signingConfigs {
++    create("selfuse") {
++      if (signingProps.getProperty("storeFile") != null) {
++        storeFile = file(signingProps.getProperty("storeFile"))
++        storePassword = signingProps.getProperty("storePassword")
++        keyAlias = signingProps.getProperty("keyAlias")
++        keyPassword = signingProps.getProperty("keyPassword")
++      }
++    }
++  }
++
+   // filter out incomplete translations from stable releases (which end in 50+)
+   val isStableRelease = (defaultConfig.versionCode ?: 0) % 100 >= 50
+   if (isStableRelease) {
+@@ -38,6 +55,7 @@ android {
+   buildTypes {
+     all { buildConfigField("String", "ACRA_REPORT_EMAIL", "\"reports@f-droid.org\"") }
+     getByName("release") {
++      signingConfig = signingConfigs.getByName("selfuse")  // abuild: 自用签名
+       isMinifyEnabled = true
+       isShrinkResources = true
+       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+diff --git a/build.gradle b/build.gradle
+index c285618..3f73189 100644
+--- a/build.gradle
++++ b/build.gradle
+@@ -1,7 +1,7 @@
+ buildscript {
+     repositories {
+         mavenCentral()
+-        maven { url 'https://maven.google.com/' }
++        maven { url 'https://dl.google.com/dl/android/maven2/' }
+     }
+ }
+ plugins {
+@@ -21,7 +21,7 @@ plugins {
+ allprojects {
+     repositories {
+         mavenCentral()
+-        maven { url 'https://maven.google.com/' }
++        maven { url 'https://dl.google.com/dl/android/maven2/' }
+     }
+     ktfmt {
+         googleStyle()
